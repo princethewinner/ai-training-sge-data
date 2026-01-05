@@ -43,7 +43,6 @@ class GeneDataFrame(BaseDataFrame):
     ref_data: tp.Optional[pd.DataFrame] = field(repr=False, default=None)
     gene_metadata: tp.Optional[tp.Dict[str, str]] = field(repr=False, default=None)
     n_samples: int = field(repr=True, default=-1)
-    info: str = field(repr=True, default="No coordinates in the dataframe.")
 
     def _updateSampleInfo(self) -> None:
         self.n_samples = self.sge_data.shape[0]
@@ -71,7 +70,9 @@ class SGEDataFrame(BaseDataFrame):
 
     def __getitem__(self, gene_name: str) -> GeneDataFrame:
         if gene_name not in self.holder:
-            raise KeyError()  # @TODO: Add message
+            raise KeyError(
+                f"Gene name: {gene_name} not found. Available genes: {self.supported_gene_list}"
+            )
         return self.holder[gene_name]
 
     def combineSGEData(
