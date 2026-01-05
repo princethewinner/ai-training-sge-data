@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ai-training-sge-data"
-version = "0.0.0"
+version = "0.1.0"
 description = "This package is for setting data for ai training datasets."
 authors = ["Prashant Gupta <pg20@sanger.ac.uk>; Prashant Gupta <prashant10991@gmail.com>"]
 readme = "README.md"
