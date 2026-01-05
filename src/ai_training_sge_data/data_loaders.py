@@ -50,6 +50,18 @@ class GeneDataFrame(BaseDataFrame):
     def __post_init__(self) -> None:
         self._updateSampleInfo()
 
+    def combinedData(self, on: str = "Unique_identifier") -> pd.DataFrame:
+
+        if self.ref_data is None:
+            warnings.warn("Ref data is missing returning sge_data", UserWarning)
+            return deepcopy(self.sge_data)
+
+        combined_data: pd.DataFrame = pd.merge(
+            left=self.sge_data, right=self.ref_data, on=on
+        )
+
+        return combined_data
+
 
 @dataclass
 class SGEDataFrame(BaseDataFrame):
@@ -76,19 +88,34 @@ class SGEDataFrame(BaseDataFrame):
         return self.holder[gene_name]
 
     def combineSGEData(
-        self, gene_list: tp.List[str]
+        self,
+        gene_list: tp.List[str],
+        combined: bool = False,
+        on: str = "Unique_identifier",
     ) -> tp.Tuple[pd.DataFrame, tp.Dict[str, int]]:
         df_list: tp.List[pd.DataFrame] = []
         gene_start_index: tp.Dict[str, int] = dict()
         run_index: int = 0
+        df_col: pd.DataFrame
         for key in gene_list:
-            df_col: pd.DataFrame = self[key].sge_data.copy()
+            if combined:
+                df_col = self[key].combinedData(on=on)
+            else:
+                df_col = self[key].sge_data.copy()
+
             df_col["gene"] = key
             df_list.append(df_col)
             gene_start_index[key] = run_index
             run_index += df_col.shape[0]
 
         return pd.concat(df_list, axis=0).reset_index(drop=True), gene_start_index
+
+    def serialise(self) -> tp.Dict[str, tp.Any]:
+        _obj: tp.Dict[str, tp.Any] = deepcopy(vars(self))
+        for key in _obj["holder"]:
+            _obj["holder"][key] = _obj["holder"][key].serialise()
+
+        return _obj
 
     @classmethod
     def load(
@@ -136,3 +163,40 @@ class SGEDataFrame(BaseDataFrame):
         for key in self.supported_gene_list:
             metadata_dict[key] = self[key].gene_metadata
         return metadata_dict
+
+
+## Add data extractors
+
+
+def loadDataForEmbeddingExtraction(
+    data_path: str,
+    gene_names: tp.Union[tp.Literal["all"], tp.List[str]],
+    required_columns: tp.List[str] = [
+        "Unique_identifier",
+        "gene",
+        "Sequence",
+        "pam_seq",
+    ],
+) -> pd.DataFrame:
+
+    data: SGEDataFrame = SGEDataFrame.load(data_path)
+
+    if isinstance(gene_names, str) and gene_names == "all":
+        gene_names = data.supported_gene_list
+    if isinstance(gene_names, str):
+        gene_names = [gene_names]
+
+    unknown_genes: tp.Set[str] = set(gene_names) - set(data.supported_gene_list)
+
+    if len(unknown_genes) > 0:
+        raise ValueError(
+            f"Unknown genes found {unknown_genes}, Supported gene list: {data.supported_gene_list}"
+        )
+
+    combined_sge_data: pd.DataFrame
+
+    combined_sge_data, _ = data.combineSGEData(
+        gene_list=gene_names, combined=True, on="Unique_identifier"
+    )
+
+    return combined_sge_data[required_columns]
