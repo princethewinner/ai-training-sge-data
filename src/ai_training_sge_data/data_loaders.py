@@ -170,7 +170,7 @@ class SGEDataFrame(BaseDataFrame):
 
 def loadDataForEmbeddingExtraction(
     data_path: str,
-    gene_names: tp.Union[tp.Literal["all"], tp.List[str]],
+    gene_names: tp.Union[tp.Literal["all"], tp.List[str]] = ["BAP1"],
     required_columns: tp.List[str] = [
         "Unique_identifier",
         "gene",
